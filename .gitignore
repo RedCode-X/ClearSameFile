@@ -1,0 +1,25 @@
+# IDE
+.idea/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+
+# Build output
+build/
+dist/
+*.spec
+
+# Data files
+*.csv
+*.xlsx
+
+# Config (user-specific, auto-generated at runtime)
+config.json
+
+# OS
+Thumbs.db
+.DS_Store
