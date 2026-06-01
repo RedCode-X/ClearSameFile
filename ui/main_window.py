@@ -19,7 +19,7 @@ from core import backup
 from ui.scan_panel import ScanPanel
 from ui.result_panel import ResultPanel
 from ui.detail_panel import DetailPanel
-from ui.dialogs import ConfirmDeleteDialog, format_size
+from ui.dialogs import ConfirmDeleteDialog, EmptyDirCleanDialog, format_size
 from ui.restore_panel import RestoreDialog
 from ui.history_dialog import HistoryDialog
 from utils.config import (
@@ -284,6 +284,7 @@ class MainWindow(QMainWindow):
         self.result_panel.delete_requested.connect(self._delete_selected)
         self.result_panel.preview_requested.connect(self._preview_delete)
         self.result_panel.export_requested.connect(self._export_report)
+        self.result_panel.clean_empty_requested.connect(self._clean_empty_dirs)
 
         self.detail_panel.deletion_changed.connect(self._on_detail_changed)
 
@@ -358,6 +359,7 @@ class MainWindow(QMainWindow):
         if not groups:
             self.scan_panel.on_scan_finished(0, 0, 0)
             self.status_bar.showMessage("扫描完成 — 未发现重复文件")
+            QMessageBox.information(self, "扫描结果", "未发现重复文件。")
             return
 
         # Auto-apply default strategy (keep_newest) to all groups
@@ -536,11 +538,12 @@ class MainWindow(QMainWindow):
         success = result["total_files"]
         failed = len(result.get("failed", []))
 
-        self.status_bar.showMessage(
-            f"删除完成 — {success} 个文件已移至备份目录, 失败 {failed} 个"
-        )
-
         self._refresh_results(set(files_to_delete))
+
+        self.status_bar.showMessage(
+            f"删除完成 — {success} 个文件已移至备份目录"
+            + (f", 失败 {failed} 个" if failed else "")
+        )
 
         if failed > 0:
             QMessageBox.warning(
@@ -580,6 +583,40 @@ class MainWindow(QMainWindow):
 
         if new_results:
             self._apply_strategy_to_all(self.result_panel.get_current_strategy())
+
+    # ==================== Clean Empty Dirs ====================
+
+    def _clean_empty_dirs(self):
+        scan_dirs = [
+            self.scan_panel.dir_list.item(i).text()
+            for i in range(self.scan_panel.dir_list.count())
+        ]
+        if not scan_dirs:
+            QMessageBox.information(self, "提示", "请先添加扫描目录。")
+            return
+
+        self.status_bar.showMessage("正在扫描空文件夹...")
+        empty_dirs = backup.find_empty_dirs(scan_dirs)
+        if not empty_dirs:
+            self.status_bar.showMessage("未发现空文件夹")
+            QMessageBox.information(self, "清理空目录", "扫描范围内未发现空文件夹。")
+            return
+
+        # Show preview
+        dlg = EmptyDirCleanDialog(empty_dirs, self)
+        dlg.exec()
+        if not dlg.confirmed:
+            self.status_bar.showMessage("已取消")
+            return
+
+        removed = backup.remove_empty_dirs(scan_dirs)
+        self.status_bar.showMessage(
+            f"已移除 {len(removed)} 个空文件夹"
+        )
+        QMessageBox.information(
+            self, "清理完成",
+            f"已移除 {len(removed)} 个空文件夹。"
+        )
 
     # ==================== History ====================
 

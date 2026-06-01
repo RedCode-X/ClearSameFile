@@ -20,6 +20,7 @@ class ResultPanel(QWidget):
     delete_requested = Signal()                      # user clicked execute delete
     preview_requested = Signal()                     # user wants to see delete list
     export_requested = Signal()                      # export CSV
+    clean_empty_requested = Signal()                 # clean empty directories
 
     STRATEGIES = {
         "keep_smart": "智能保留",
@@ -113,6 +114,12 @@ class ResultPanel(QWidget):
         btn_row.addWidget(self.preview_btn)
         btn_row.addWidget(self.reset_btn)
         btn_row.addWidget(self.export_btn)
+
+        self.clean_empty_btn = QPushButton("清理空目录")
+        self.clean_empty_btn.setToolTip("扫描并移除扫描目录范围内的空文件夹")
+        self.clean_empty_btn.clicked.connect(lambda: self.clean_empty_requested.emit())
+        btn_row.addWidget(self.clean_empty_btn)
+
         btn_row.addStretch()
         btn_row.addWidget(self.delete_btn)
         bottom.addLayout(btn_row)

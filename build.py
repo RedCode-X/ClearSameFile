@@ -25,7 +25,7 @@ def build():
     print("\n[开始] 正在使用 PyInstaller 打包...")
 
     icon_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                             "resources", "app.ico")
+                             "ui", "resources", "app.ico")
 
     cmd = [
         sys.executable, "-m", "PyInstaller",

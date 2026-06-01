@@ -3,6 +3,7 @@
 from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
     QDialogButtonBox, QFormLayout, QLineEdit, QSpinBox,
+    QListWidget, QAbstractItemView,
 )
 from PySide6.QtCore import Qt
 
@@ -11,7 +12,7 @@ class ConfirmDeleteDialog(QDialog):
     def __init__(self, file_count: int, total_size: int, parent=None):
         super().__init__(parent)
         self.setWindowTitle("确认删除")
-        self.setMinimumWidth(400)
+        self.setMinimumWidth(420)
         self._result = False
 
         layout = QVBoxLayout(self)
@@ -20,7 +21,7 @@ class ConfirmDeleteDialog(QDialog):
             f"<b>确定要删除以下文件吗？</b><br><br>"
             f"文件数量: {file_count}<br>"
             f"总大小: {format_size(total_size)}<br><br>"
-            f"文件将被移动到<b>回收站</b>，可随时恢复。"
+            f"文件将被备份到「我的文档」ClearSameFile_Backup 目录，可随时恢复。"
         )
         warning.setWordWrap(True)
         layout.addWidget(warning)
@@ -92,6 +93,46 @@ class FilterDialog(QDialog):
             "extensions": self.extensions.text().strip(),
             "exclude_dirs": self.exclude_dirs.text().strip(),
         }
+
+
+class EmptyDirCleanDialog(QDialog):
+    """Preview empty directories and confirm removal."""
+
+    def __init__(self, empty_dirs: list, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("清理空目录")
+        self.setMinimumSize(550, 350)
+        self._result = False
+
+        layout = QVBoxLayout(self)
+
+        layout.addWidget(QLabel(
+            f"发现 <b>{len(empty_dirs)}</b> 个空文件夹，确认移除？"
+        ))
+
+        list_widget = QListWidget()
+        list_widget.setSelectionMode(QAbstractItemView.SelectionMode.NoSelection)
+        for d in empty_dirs:
+            list_widget.addItem(d)
+        layout.addWidget(list_widget)
+
+        buttons = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Yes | QDialogButtonBox.StandardButton.No
+        )
+        buttons.setCenterButtons(True)
+        buttons.button(QDialogButtonBox.StandardButton.Yes).setText("确认移除")
+        buttons.button(QDialogButtonBox.StandardButton.No).setText("取消")
+        buttons.accepted.connect(self._on_accept)
+        buttons.rejected.connect(self.reject)
+        layout.addWidget(buttons)
+
+    def _on_accept(self):
+        self._result = True
+        self.accept()
+
+    @property
+    def confirmed(self) -> bool:
+        return self._result
 
 
 def format_size(size_bytes: int) -> str:

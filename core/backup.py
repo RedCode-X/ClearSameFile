@@ -153,6 +153,112 @@ def delete_backup_session(session_dir: str) -> bool:
         return False
 
 
+def find_empty_dirs(root_dirs: List[str], dry_run: bool = True) -> List[str]:
+    """Discover empty directories under root_dirs (bottom-up, dry-run by default).
+
+    Only considers directories under the given root_dirs.  Root dirs themselves
+    are never reported.  When a child is empty its parent is re-checked, so
+    chains of empty dirs are discovered entirely.
+
+    Args:
+        root_dirs: Scan root directories — these are never included.
+        dry_run: When True (default) only returns paths without removing.
+
+    Returns:
+        List of empty directory paths (shallowest-first for display).
+    """
+    norm_roots = set()
+    for d in root_dirs:
+        norm = os.path.normpath(os.path.abspath(d)).lower()
+        norm_roots.add(norm)
+
+    # Walk each root and collect all directories under it
+    candidates: set[str] = set()
+    for root in norm_roots:
+        if not os.path.isdir(root):
+            continue
+        for dirpath, dirnames, _ in os.walk(root):
+            for dn in dirnames:
+                candidates.add(os.path.join(dirpath, dn))
+
+    found: List[str] = []
+    changed = True
+    while changed:
+        changed = False
+        for r in found:
+            p = os.path.dirname(r)
+            if p and os.path.isdir(p) and p.lower() not in norm_roots:
+                candidates.add(p)
+
+        for d in sorted(candidates, key=len, reverse=True):
+            d_norm = os.path.normpath(d).lower()
+            if d_norm in norm_roots:
+                continue
+            if d_norm in set(os.path.normpath(r).lower() for r in found):
+                continue
+            try:
+                if os.path.isdir(d) and not os.listdir(d):
+                    if not dry_run:
+                        os.rmdir(d)
+                    found.append(d)
+                    changed = True
+            except OSError:
+                pass
+
+    found.sort(key=lambda p: len(p))
+    return found
+
+
+def remove_empty_dirs(root_dirs: List[str]) -> List[str]:
+    """Remove empty directories under root_dirs (bottom-up).
+
+    Convenience wrapper around find_empty_dirs with dry_run=False.
+
+    Returns:
+        List of removed directory paths (shallowest-first for display).
+    """
+    return find_empty_dirs(root_dirs, dry_run=False)
+    for d in root_dirs:
+        norm = os.path.normpath(os.path.abspath(d)).lower()
+        norm_roots.add(norm)
+
+    # Walk each root and collect all directories under it (not the root itself)
+    candidates: set[str] = set()
+    for root in norm_roots:
+        if not os.path.isdir(root):
+            continue
+        for dirpath, dirnames, _ in os.walk(root):
+            for dn in dirnames:
+                candidates.add(os.path.join(dirpath, dn))
+
+    all_removed: List[str] = []
+    changed = True
+    while changed:
+        changed = False
+        # After removing a subdir, its parent may be empty — re-check it
+        for r in all_removed:
+            p = os.path.dirname(r)
+            if p and os.path.isdir(p) and p.lower() not in norm_roots:
+                candidates.add(p)
+
+        for d in sorted(candidates, key=len, reverse=True):  # deepest first
+            d_norm = os.path.normpath(d).lower()
+            if d_norm in norm_roots:
+                continue
+            if d_norm in set(os.path.normpath(r).lower() for r in all_removed):
+                continue
+            try:
+                if os.path.isdir(d) and not os.listdir(d):
+                    os.rmdir(d)
+                    all_removed.append(d)
+                    changed = True
+            except OSError:
+                pass
+
+    all_removed.sort(key=lambda p: len(p))
+    return all_removed
+
+
 def clean_empty_sessions() -> int:
     """Remove backup sessions that have no remaining files. Returns count removed."""
     count = 0

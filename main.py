@@ -14,7 +14,7 @@ def main():
     app.setApplicationVersion("1.0")
 
     icon_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                             "resources", "app.ico")
+                             "ui", "resources", "app.ico")
     if os.path.isfile(icon_path):
         app.setWindowIcon(QIcon(icon_path))
 
